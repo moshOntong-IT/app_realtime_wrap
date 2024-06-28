@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:appwrite/appwrite.dart';
-
 /// The type of realtime event.
 enum SubscribeRealtimeType {
   /// A new data was created.
@@ -47,14 +45,14 @@ class SubscribeRealtime<T> {
   /// {@macro sidlak_realtime}
   const SubscribeRealtime({
     required this.onDispose,
-    required this.subscription,
+    // required this.subscription,
   });
 
   /// The callback when the subscription is disposed.
   final void Function() onDispose;
 
-  /// The subscription
-  final Stream<SubscribeRealtimeData<RealtimeMessage>> subscription;
+  // /// The subscription
+  // final Stream<SubscribeRealtimeData<RealtimeMessage>> subscription;
 
   /// Dispose
   Future<void> dispose() async {

@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:app_realtime_wrap/app_realtime_wrap.dart';
 import 'package:appwrite/appwrite.dart';
 
+/// The typedef of callback on subscribing the state
+typedef SubscribeStateCallback = void Function(Stream<SubscribeState> state);
+
 /// The factory function to create a subscribe service
 SubscribeServicesBase<T> createService<T>({
   required int staleTimeout,
@@ -29,13 +32,17 @@ sealed class SubscribeService<T> {
   /// To subscribe to a channel
   SubscribeRealtime<T> subscribe({
     required List<String> channels,
+    required SubscribeStateCallback stateListen,
   });
 }
 
 /// The base class for all subscribe services
 sealed class SubscribeServicesBase<T> implements SubscribeService<T> {
   @override
-  SubscribeRealtime<T> subscribe({required List<String> channels});
+  SubscribeRealtime<T> subscribe({
+    required List<String> channels,
+    required SubscribeStateCallback stateListen,
+  });
 }
 
 /// {@template subscribe_services_io}
@@ -54,7 +61,9 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
   /// The realtime instance
   Realtime realtime;
 
-  final StreamController<RealtimeMessage> _subscriptionController =
+  /// A callback that is that the subscribe is going to refresh
+
+  final StreamController<SubscribeState> _subscriptionStateController =
       StreamController.broadcast();
 
   RealtimeSubscription? _realtimeSubscription;
@@ -63,26 +72,35 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
 
   bool _isConnected = false;
 
+  /// Indicator if the subscription is going to refresh
+  bool _isRefreshing = false;
+
   @override
-  SubscribeRealtime<T> subscribe({required List<String> channels}) {
+  SubscribeRealtime<T> subscribe({
+    required List<String> channels,
+    required SubscribeStateCallback stateListen,
+  }) {
+    stateListen.call(_subscriptionStateController.stream);
+
     _connect(realtime: realtime, channels: channels);
 
     AppRealtimeWrap.instance.realtime.addListener(_realtimeInstanceListener);
     return SubscribeRealtime(
       onDispose: () {
+        _subscriptionStateController.add(const DisposeSubscribeEvent());
         _realtimeSubscription?.close();
-        _subscriptionController.close();
+        _subscriptionStateController.close();
 
         _staleTimer?.cancel();
         AppRealtimeWrap.instance.realtime
             .removeListener(_realtimeInstanceListener);
       },
-      subscription: _subscriptionController.stream.map((event) {
-        return SubscribeRealtimeData(
-          data: event,
-          type: SubscribeRealtimeType.fromString(event.events.first),
-        );
-      }),
+      // subscription: _subscriptionStateController.stream.map((event) {
+      //   return SubscribeRealtimeData(
+      //     data: event,
+      //     type: SubscribeRealtimeType.fromString(event.events.first),
+      //   );
+      // }),
     );
   }
 
@@ -94,35 +112,60 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
   }
 
   void _connect({required Realtime realtime, required List<String> channels}) {
+    if (!_isRefreshing) {
+      _subscriptionStateController.add(const LoadingSubscribeEvent());
+    }
     _realtimeSubscription?.close();
     _realtimeSubscription = realtime.subscribe(channels);
+
+    _subscriptionStateController.add(const ConnectedSubscribeEvent());
     _isConnected = true;
     _realtimeSubscription!.stream.listen(
       (event) {
-        _isConnected = true;
-        _resetStaleTimer(channels);
-        _subscriptionController.add(event);
+        _resetStaleTimer();
+        _subscriptionStateController.add(
+          DataSubscribeEvent(
+            SubscribeRealtimeData(
+              data: event,
+              type: SubscribeRealtimeType.fromString(event.events.first),
+            ),
+          ),
+        );
       },
-      onError: (error) {
+      onError: (Object error) {
+        final exception = AppRealtimeException(
+          message: 'Error subscribing to realtime',
+          error: error,
+          stackTrace: StackTrace.current,
+        );
+        _subscriptionStateController.add(ErrorSubscribeEvent(exception));
         _isConnected = false;
       },
       onDone: () {
+        if (_isRefreshing) {
+          _connect(
+            realtime: AppRealtimeWrap.instance.realtime.value!,
+            channels: channels,
+          );
+          _isRefreshing = false;
+
+          return;
+        }
         _isConnected = false;
       },
     );
 
-    _resetStaleTimer(channels);
+    _resetStaleTimer();
   }
 
-  void _resetStaleTimer(List<String> channels) {
+  void _resetStaleTimer() {
     _staleTimer?.cancel();
     _staleTimer = Timer(Duration(seconds: staleTimeout), () {
       if (_isConnected) {
         _isConnected = false;
-        _connect(
-          realtime: AppRealtimeWrap.instance.realtime.value!,
-          channels: channels,
-        );
+        _isRefreshing = true;
+        _subscriptionStateController.add(const RefreshSubscribeEvent());
+        _realtimeSubscription?.close();
       }
     });
   }

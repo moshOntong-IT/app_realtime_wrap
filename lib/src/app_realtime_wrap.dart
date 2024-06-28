@@ -155,7 +155,10 @@ class AppRealtimeWrap {
 
   /// Subscribes to Appwrite events and returns a `SubscribeRealtime` object
   /// which can be used
-  SubscribeRealtime<RealtimeMessage> subscribe(List<String> channels) {
+  SubscribeRealtime<RealtimeMessage> subscribe({
+    required List<String> channels,
+    required SubscribeStateCallback stateListen,
+  }) {
     if (_isDisposed) {
       throw AppRealtimeException(
         message: 'AppRealtimeWrap is already disposed',
@@ -183,7 +186,7 @@ class AppRealtimeWrap {
     return SubscribeService<RealtimeMessage>(
       staleTimeout: _staleTimeout,
       realtime: _realtime.value!,
-    ).subscribe(channels: channels);
+    ).subscribe(channels: channels, stateListen: stateListen);
   }
 
   /// Disposes the `AppRealtimeWrap`. To avoid memory leaks,
