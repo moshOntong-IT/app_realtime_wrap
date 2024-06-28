@@ -58,7 +58,7 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
       StreamController.broadcast();
 
   RealtimeSubscription? _realtimeSubscription;
-  Timer? _reconnectTimer;
+
   Timer? _staleTimer;
 
   bool _isConnected = false;
@@ -72,7 +72,7 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
       onDispose: () {
         _realtimeSubscription?.close();
         _subscriptionController.close();
-        _reconnectTimer?.cancel();
+
         _staleTimer?.cancel();
         AppRealtimeWrap.instance.realtime
             .removeListener(_realtimeInstanceListener);
@@ -96,35 +96,22 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
   void _connect({required Realtime realtime, required List<String> channels}) {
     _realtimeSubscription?.close();
     _realtimeSubscription = realtime.subscribe(channels);
-
+    _isConnected = true;
     _realtimeSubscription!.stream.listen(
       (event) {
         _isConnected = true;
-        _reconnectTimer?.cancel();
         _resetStaleTimer(channels);
         _subscriptionController.add(event);
       },
       onError: (error) {
         _isConnected = false;
-        _startReconnectTimer(channels);
       },
       onDone: () {
         _isConnected = false;
-        _startReconnectTimer(channels);
       },
     );
 
-    _startReconnectTimer(channels);
     _resetStaleTimer(channels);
-  }
-
-  void _startReconnectTimer(List<String> channels) {
-    _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(Duration(milliseconds: staleTimeout), () {
-      if (!_isConnected) {
-        _connect(realtime: realtime, channels: channels);
-      }
-    });
   }
 
   void _resetStaleTimer(List<String> channels) {
@@ -132,7 +119,10 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
     _staleTimer = Timer(Duration(milliseconds: staleTimeout), () {
       if (_isConnected) {
         _isConnected = false;
-        _connect(realtime: realtime, channels: channels);
+        _connect(
+          realtime: AppRealtimeWrap.instance.realtime.value!,
+          channels: channels,
+        );
       }
     });
   }

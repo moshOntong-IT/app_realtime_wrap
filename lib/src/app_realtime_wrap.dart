@@ -52,7 +52,7 @@ class AppRealtimeWrap {
     required Client client,
     int reconnectMaxAttempts = 5,
     int reconnectDelay = 5,
-    int staleTimeout = 30,
+    int staleTimeout = 300,
     void Function(AppRealtimeException exception)? onError,
   }) async {
     if (_isDisposed) {
