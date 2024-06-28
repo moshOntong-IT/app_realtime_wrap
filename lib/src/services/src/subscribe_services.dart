@@ -52,9 +52,10 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
   final int staleTimeout;
 
   /// The realtime instance
-  final Realtime realtime;
+  Realtime realtime;
 
-  StreamController<RealtimeMessage>? _subscriptionController;
+  final StreamController<RealtimeMessage> _subscriptionController =
+      StreamController.broadcast();
 
   RealtimeSubscription? _realtimeSubscription;
   Timer? _reconnectTimer;
@@ -64,15 +65,19 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
 
   @override
   SubscribeRealtime<T> subscribe({required List<String> channels}) {
-    _connect(channels);
+    _connect(realtime: realtime, channels: channels);
+
+    AppRealtimeWrap.instance.realtime!.addListener(_realtimeInstanceListener);
     return SubscribeRealtime(
       onDispose: () {
         _realtimeSubscription?.close();
-        _subscriptionController?.close();
+        _subscriptionController.close();
         _reconnectTimer?.cancel();
         _staleTimer?.cancel();
+        AppRealtimeWrap.instance.realtime!
+            .removeListener(_realtimeInstanceListener);
       },
-      subscription: _subscriptionController!.stream.map((event) {
+      subscription: _subscriptionController.stream.map((event) {
         return SubscribeRealtimeData(
           data: event,
           type: SubscribeRealtimeType.fromString(event.events.first),
@@ -81,7 +86,14 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
     );
   }
 
-  void _connect(List<String> channels) {
+  void _realtimeInstanceListener() {
+    _connect(
+      realtime: AppRealtimeWrap.instance.realtime!.value,
+      channels: _realtimeSubscription!.channels,
+    );
+  }
+
+  void _connect({required Realtime realtime, required List<String> channels}) {
     _realtimeSubscription?.close();
     _realtimeSubscription = realtime.subscribe(channels);
 
@@ -90,7 +102,7 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
         _isConnected = true;
         _reconnectTimer?.cancel();
         _resetStaleTimer(channels);
-        _subscriptionController!.add(event);
+        _subscriptionController.add(event);
       },
       onError: (error) {
         _isConnected = false;
@@ -110,7 +122,7 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(Duration(milliseconds: staleTimeout), () {
       if (!_isConnected) {
-        _connect(channels);
+        _connect(realtime: realtime, channels: channels);
       }
     });
   }
@@ -120,7 +132,7 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
     _staleTimer = Timer(Duration(milliseconds: staleTimeout), () {
       if (_isConnected) {
         _isConnected = false;
-        _connect(channels);
+        _connect(realtime: realtime, channels: channels);
       }
     });
   }

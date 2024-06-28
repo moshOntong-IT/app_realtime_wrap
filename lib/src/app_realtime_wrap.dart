@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:app_realtime_wrap/app_realtime_wrap.dart';
-import 'package:app_realtime_wrap/src/services/src/subscribe_services.dart';
 import 'package:appwrite/appwrite.dart';
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 
 /// {@template app_realtime_wrap}
@@ -21,7 +21,10 @@ class AppRealtimeWrap {
   static AppRealtimeWrap get instance => _instance;
 
   /// The Realtime instance from Appwrite
-  late final Realtime? _realtime;
+  late final ValueNotifier<Realtime> _realtime;
+
+  /// Getter for the Realtime instance
+  ValueNotifier<Realtime>? get realtime => _realtime;
 
   /// The StreamController for catching the errors
   final StreamController<AppRealtimeException> _errorController =
@@ -72,7 +75,9 @@ class AppRealtimeWrap {
 
     try {
       _staleTimeout = staleTimeout;
-      _realtime = Realtime(client);
+      _realtime = ValueNotifier<Realtime>(
+        Realtime(client),
+      );
     } catch (e) {
       _errorController.add(
         AppRealtimeException(
@@ -139,7 +144,9 @@ class AppRealtimeWrap {
       );
       _logger.info('Reconnecting to Realtime after $reconnectDelay seconds');
       try {
-        _realtime = Realtime(client);
+        _realtime = ValueNotifier<Realtime>(
+          Realtime(client),
+        );
         break;
       } catch (e) {
         _logger.severe('Reconnecting to Realtime failed');
@@ -177,7 +184,7 @@ class AppRealtimeWrap {
 
     return SubscribeService<RealtimeMessage>(
       staleTimeout: _staleTimeout,
-      realtime: _realtime!,
+      realtime: _realtime.value,
     ).subscribe(channels: channels);
   }
 
