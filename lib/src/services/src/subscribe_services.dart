@@ -116,6 +116,7 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
   void _connect({required Realtime realtime, required List<String> channels}) {
     if (!_isRefreshing) {
       _subscriptionStateController.add(const LoadingSubscribeEvent());
+      _isRefreshing = false;
     }
     _realtimeSubscription?.close();
     _realtimeSubscription = realtime.subscribe(channels);
@@ -145,12 +146,11 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
       },
       onDone: () {
         if (_isRefreshing == true && _isConnected == true) {
+          _isConnected = false;
           _connect(
             realtime: AppRealtimeWrap.instance.realtime.value!,
             channels: channels,
           );
-          _isConnected = false;
-          _isRefreshing = false;
 
           return;
         }
