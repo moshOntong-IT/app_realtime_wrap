@@ -65,8 +65,6 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
 
   @override
   SubscribeRealtime<T> subscribe({required List<String> channels}) {
-    _connect(realtime: realtime, channels: channels);
-
     AppRealtimeWrap.instance.realtime.addListener(_realtimeInstanceListener);
     return SubscribeRealtime(
       onDispose: () {
