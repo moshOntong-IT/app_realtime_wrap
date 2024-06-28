@@ -116,7 +116,7 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
 
   void _resetStaleTimer(List<String> channels) {
     _staleTimer?.cancel();
-    _staleTimer = Timer(Duration(milliseconds: staleTimeout), () {
+    _staleTimer = Timer(Duration(seconds: staleTimeout), () {
       if (_isConnected) {
         _isConnected = false;
         _connect(
