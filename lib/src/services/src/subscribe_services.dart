@@ -90,10 +90,12 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
         _subscriptionStateController.add(const DisposeSubscribeEvent());
         _realtimeSubscription?.close();
         _subscriptionStateController.close();
-
         _staleTimer?.cancel();
         AppRealtimeWrap.instance.realtime
             .removeListener(_realtimeInstanceListener);
+
+        _realtimeSubscription = null;
+        _staleTimer = null;
       },
       // subscription: _subscriptionStateController.stream.map((event) {
       //   return SubscribeRealtimeData(
@@ -142,11 +144,12 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
         _isConnected = false;
       },
       onDone: () {
-        if (_isRefreshing) {
+        if (_isRefreshing == true && _isConnected == true) {
           _connect(
             realtime: AppRealtimeWrap.instance.realtime.value!,
             channels: channels,
           );
+          _isConnected = false;
           _isRefreshing = false;
 
           return;
@@ -162,10 +165,10 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
     _staleTimer?.cancel();
     _staleTimer = Timer(Duration(seconds: staleTimeout), () {
       if (_isConnected) {
-        _isConnected = false;
         _isRefreshing = true;
         _subscriptionStateController.add(const RefreshSubscribeEvent());
         _realtimeSubscription?.close();
+        _realtimeSubscription = null;
       }
     });
   }
