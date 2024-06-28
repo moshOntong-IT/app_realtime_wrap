@@ -21,10 +21,10 @@ class AppRealtimeWrap {
   static AppRealtimeWrap get instance => _instance;
 
   /// The Realtime instance from Appwrite
-  late final ValueNotifier<Realtime> _realtime;
+  final ValueNotifier<Realtime?> _realtime = ValueNotifier<Realtime?>(null);
 
   /// Getter for the Realtime instance
-  ValueNotifier<Realtime>? get realtime => _realtime;
+  ValueNotifier<Realtime?> get realtime => _realtime;
 
   /// The StreamController for catching the errors
   final StreamController<AppRealtimeException> _errorController =
@@ -75,9 +75,8 @@ class AppRealtimeWrap {
 
     try {
       _staleTimeout = staleTimeout;
-      _realtime = ValueNotifier<Realtime>(
-        Realtime(client),
-      );
+      final instance = Realtime(client);
+      _realtime.value = instance;
     } catch (e) {
       _errorController.add(
         AppRealtimeException(
@@ -144,9 +143,8 @@ class AppRealtimeWrap {
       );
       _logger.info('Reconnecting to Realtime after $reconnectDelay seconds');
       try {
-        _realtime = ValueNotifier<Realtime>(
-          Realtime(client),
-        );
+        final instance = Realtime(client);
+        _realtime.value = instance;
         break;
       } catch (e) {
         _logger.severe('Reconnecting to Realtime failed');
@@ -184,7 +182,7 @@ class AppRealtimeWrap {
 
     return SubscribeService<RealtimeMessage>(
       staleTimeout: _staleTimeout,
-      realtime: _realtime.value,
+      realtime: _realtime.value!,
     ).subscribe(channels: channels);
   }
 

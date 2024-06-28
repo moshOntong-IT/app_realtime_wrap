@@ -67,14 +67,14 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
   SubscribeRealtime<T> subscribe({required List<String> channels}) {
     _connect(realtime: realtime, channels: channels);
 
-    AppRealtimeWrap.instance.realtime!.addListener(_realtimeInstanceListener);
+    AppRealtimeWrap.instance.realtime.addListener(_realtimeInstanceListener);
     return SubscribeRealtime(
       onDispose: () {
         _realtimeSubscription?.close();
         _subscriptionController.close();
         _reconnectTimer?.cancel();
         _staleTimer?.cancel();
-        AppRealtimeWrap.instance.realtime!
+        AppRealtimeWrap.instance.realtime
             .removeListener(_realtimeInstanceListener);
       },
       subscription: _subscriptionController.stream.map((event) {
@@ -88,7 +88,7 @@ class SubscribeServicesIO<T> extends SubscribeServicesBase<T> {
 
   void _realtimeInstanceListener() {
     _connect(
-      realtime: AppRealtimeWrap.instance.realtime!.value,
+      realtime: AppRealtimeWrap.instance.realtime.value!,
       channels: _realtimeSubscription!.channels,
     );
   }
